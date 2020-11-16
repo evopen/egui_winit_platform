@@ -60,78 +60,71 @@ impl Platform {
     }
 
     /// Handles the given winit event and updates the egui context. Should be called before starting a new frame with `start_frame()`.
-    pub fn handle_event<T>(&mut self, winit_event: &Event<T>) {
-        match winit_event {
-            Event::WindowEvent {
-                window_id: _window_id,
-                event,
-            } => match event {
-                Resized(physical_size) => {
-                    self.raw_input.screen_size =
-                        vec2(physical_size.width as f32, physical_size.height as f32)
-                            / self.scale_factor as f32;
-                }
-                ScaleFactorChanged {
-                    scale_factor,
-                    new_inner_size,
-                } => {
-                    self.scale_factor = *scale_factor;
-                    self.raw_input.pixels_per_point = Some(*scale_factor as f32);
-                    self.raw_input.screen_size =
-                        vec2(new_inner_size.width as f32, new_inner_size.height as f32)
-                            / self.scale_factor as f32;
-                }
-                MouseInput { state, .. } => {
-                    self.raw_input.mouse_down = *state == winit::event::ElementState::Pressed;
-                }
-                MouseWheel { delta, .. } => {
-                    match delta {
-                        winit::event::MouseScrollDelta::LineDelta(x, y) => {
-                            let line_height = 24.0; // TODO as in egui_glium
-                            self.raw_input.scroll_delta = vec2(*x, *y) * line_height;
-                        }
-                        winit::event::MouseScrollDelta::PixelDelta(delta) => {
-                            // Actually point delta
-                            self.raw_input.scroll_delta = vec2(delta.x as f32, delta.y as f32);
-                        }
+    pub fn handle_event(&mut self, event: &winit::event::WindowEvent) {
+        match event {
+            Resized(physical_size) => {
+                self.raw_input.screen_size =
+                    vec2(physical_size.width as f32, physical_size.height as f32)
+                        / self.scale_factor as f32;
+            }
+            ScaleFactorChanged {
+                scale_factor,
+                new_inner_size,
+            } => {
+                self.scale_factor = *scale_factor;
+                self.raw_input.pixels_per_point = Some(*scale_factor as f32);
+                self.raw_input.screen_size =
+                    vec2(new_inner_size.width as f32, new_inner_size.height as f32)
+                        / self.scale_factor as f32;
+            }
+            MouseInput { state, .. } => {
+                self.raw_input.mouse_down = *state == winit::event::ElementState::Pressed;
+            }
+            MouseWheel { delta, .. } => {
+                match delta {
+                    winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                        let line_height = 24.0; // TODO as in egui_glium
+                        self.raw_input.scroll_delta = vec2(*x, *y) * line_height;
+                    }
+                    winit::event::MouseScrollDelta::PixelDelta(delta) => {
+                        // Actually point delta
+                        self.raw_input.scroll_delta = vec2(delta.x as f32, delta.y as f32);
                     }
                 }
-                CursorMoved { position, .. } => {
-                    self.raw_input.mouse_pos = Some(pos2(
-                        position.x as f32 / self.raw_input.pixels_per_point.unwrap(),
-                        position.y as f32 / self.raw_input.pixels_per_point.unwrap(),
-                    ));
-                }
-                CursorLeft { .. } => {
-                    self.raw_input.mouse_pos = None;
-                }
-                ModifiersChanged(input) => self.modifier_state = *input,
-                KeyboardInput { input, .. } => {
-                    if let Some(virtual_keycode) = input.virtual_keycode {
-                        match virtual_keycode {
-                            VirtualKeyCode::Copy => self.raw_input.events.push(egui::Event::Copy),
-                            VirtualKeyCode::Cut => self.raw_input.events.push(egui::Event::Cut),
-                            _ => {
-                                if let Some(key) = winit_to_egui_key_code(virtual_keycode) {
-                                    self.raw_input.events.push(egui::Event::Key {
-                                        key,
-                                        pressed: input.state == winit::event::ElementState::Pressed,
-                                    });
-                                }
+            }
+            CursorMoved { position, .. } => {
+                self.raw_input.mouse_pos = Some(pos2(
+                    position.x as f32 / self.raw_input.pixels_per_point.unwrap(),
+                    position.y as f32 / self.raw_input.pixels_per_point.unwrap(),
+                ));
+            }
+            CursorLeft { .. } => {
+                self.raw_input.mouse_pos = None;
+            }
+            ModifiersChanged(input) => self.modifier_state = *input,
+            KeyboardInput { input, .. } => {
+                if let Some(virtual_keycode) = input.virtual_keycode {
+                    match virtual_keycode {
+                        VirtualKeyCode::Copy => self.raw_input.events.push(egui::Event::Copy),
+                        VirtualKeyCode::Cut => self.raw_input.events.push(egui::Event::Cut),
+                        _ => {
+                            if let Some(key) = winit_to_egui_key_code(virtual_keycode) {
+                                self.raw_input.events.push(egui::Event::Key {
+                                    key,
+                                    pressed: input.state == winit::event::ElementState::Pressed,
+                                });
                             }
                         }
                     }
                 }
-                ReceivedCharacter(ch) => {
-                    if is_printable(*ch) {
-                        self.raw_input
-                            .events
-                            .push(egui::Event::Text(ch.to_string()));
-                    }
+            }
+            ReceivedCharacter(ch) => {
+                if is_printable(*ch) {
+                    self.raw_input
+                        .events
+                        .push(egui::Event::Text(ch.to_string()));
                 }
-                _ => {}
-            },
-            Event::DeviceEvent { .. } => {}
+            }
             _ => {}
         }
     }
